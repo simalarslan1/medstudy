@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedStudy 🩺</title>
+  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #4f8ef7;
+      --blue-dark: #2563eb;
+      --green: #10b981;
+      --green-dark: #059669;
+      --red: #ef4444;
+      --surface: rgba(20, 26, 38, 0.92);
+      --surface2: rgba(30, 38, 55, 0.8);
+      --border: rgba(255,255,255,0.08);
+      --text: #f0f6fc;
+      --muted: #8b949e;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background: #0a0f1e;
+      min-height: 100vh;
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    .bg-orbs {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      overflow: hidden;
+    }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      animation: drift 20s ease-in-out infinite alternate;
+    }
+    .orb1 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(79,142,247,0.18), transparent 70%);
+      top: -150px; left: -100px;
+    }
+    .orb2 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(16,185,129,0.14), transparent 70%);
+      bottom: -100px; right: -80px;
+      animation-delay: -10s;
+    }
+    .orb3 {
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(139,92,246,0.1), transparent 70%);
+      top: 50%; left: 50%;
+      animation-delay: -5s;
+    }
+    @keyframes drift {
+      from { transform: translate(0, 0) scale(1); }
+      to { transform: translate(30px, 20px) scale(1.08); }
+    }
+
+    /* Screens */
+    .screen {
+      display: none;
+      position: relative; z-index: 1;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      flex-direction: column;
+    }
+    .screen.active { display: flex; }
+
+    .call-screen {
+      display: none;
+      position: fixed; inset: 0;
+      background: #000;
+      z-index: 100;
+    }
+    .call-screen.active { display: block; }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      padding: 44px 40px;
+      max-width: 460px;
+      width: 100%;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 24px 64px rgba(0,0,0,0.55),
+        0 4px 16px rgba(0,0,0,0.3);
+      animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Logo & headings */
+    .logo {
+      text-align: center;
+      font-size: 52px;
+      margin-bottom: 12px;
+      filter: drop-shadow(0 4px 12px rgba(79,142,247,0.4));
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #c8d9ff 0%, #7eb8f7 40%, #34d399 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    /* Form elements */
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+    input[type="text"] {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 16px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      margin-bottom: 20px;
+    }
+    input[type="text"]::placeholder { color: rgba(255,255,255,0.2); }
+    input[type="text"]:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(79,142,247,0.15);
+    }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      letter-spacing: 0.01em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn:active { transform: scale(0.97) !important; }
+    .btn + .btn { margin-top: 10px; }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+      color: white;
+      box-shadow: 0 4px 20px rgba(79,142,247,0.35), 0 1px 0 rgba(255,255,255,0.1) inset;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(79,142,247,0.45);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--green), var(--green-dark));
+      color: white;
+      box-shadow: 0 4px 20px rgba(16,185,129,0.35), 0 1px 0 rgba(255,255,255,0.1) inset;
+    }
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(16,185,129,0.45);
+    }
+
+    .btn-danger {
+      background: rgba(239,68,68,0.1);
+      color: var(--red);
+      border: 1.5px solid rgba(239,68,68,0.25);
+    }
+    .btn-danger:hover { background: rgba(239,68,68,0.18); transform: translateY(-1px); }
+
+    .btn-ghost {
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      border: 1.5px solid var(--border);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.08); }
+
+    .btn-whatsapp {
+      background: linear-gradient(135deg, #25d366, #1ebe5d);
+      color: white;
+      box-shadow: 0 4px 20px rgba(37,211,102,0.3);
+    }
+    .btn-whatsapp:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(37,211,102,0.4);
+    }
+
+    /* Link copy box */
+    .link-box {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .link-box input[type="text"] {
+      flex: 1;
+      margin: 0;
+      font-size: 12px;
+      padding: 12px 14px;
+      color: var(--muted);
+      cursor: default;
+    }
+    .copy-btn {
+      padding: 0 16px;
+      background: rgba(79,142,247,0.15);
+      border: 1.5px solid rgba(79,142,247,0.25);
+      border-radius: 14px;
+      color: var(--blue);
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .copy-btn:hover { background: rgba(79,142,247,0.25); }
+
+    /* Pulse animation (waiting) */
+    .pulse-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .pulse-ring {
+      width: 84px; height: 84px;
+      border-radius: 50%;
+      background: rgba(16,185,129,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 38px;
+      position: relative;
+    }
+    .pulse-ring::before,
+    .pulse-ring::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid rgba(16,185,129,0.4);
+      animation: ripple 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+    .pulse-ring::after { animation-delay: 1.2s; }
+    @keyframes ripple {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(2); opacity: 0; }
+    }
+
+    /* Invite screen */
+    .invite-avatar {
+      width: 88px; height: 88px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--green));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      font-weight: 800;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 32px rgba(79,142,247,0.4);
+      color: white;
+    }
+
+    .invite-name {
+      font-size: 26px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }
+
+    .live-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.25);
+      border-radius: 20px;
+      padding: 8px 20px;
+      margin: 0 auto 28px;
+      width: fit-content;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .live-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: blink 1.5s ease-in-out infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    /* Status info box */
+    .info-box {
+      background: rgba(79,142,247,0.08);
+      border: 1px solid rgba(79,142,247,0.18);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 16px 0;
+      font-size: 13px;
+      color: rgba(200,217,255,0.8);
+      line-height: 1.5;
+    }
+    .info-box-icon { font-size: 20px; flex-shrink: 0; }
+
+    /* Error box */
+    .err-box {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #fca5a5;
+      margin-top: 12px;
+      display: none;
+    }
+
+    /* Waiting dots */
+    .dots {
+      display: inline-flex;
+      gap: 5px;
+      vertical-align: middle;
+    }
+    .dots span {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--blue);
+      animation: dotbounce 1.4s ease-in-out infinite;
+    }
+    .dots span:nth-child(2) { animation-delay: 0.16s; }
+    .dots span:nth-child(3) { animation-delay: 0.32s; }
+    @keyframes dotbounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.6; }
+      40% { transform: translateY(-7px); opacity: 1; }
+    }
+
+    /* Steps list */
+    .steps {
+      list-style: none;
+      margin-top: 24px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+    .steps li {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 8px 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .step-n {
+      width: 22px; height: 22px; flex-shrink: 0;
+      border-radius: 50%;
+      background: rgba(79,142,247,0.15);
+      color: var(--blue);
+      font-size: 11px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+
+    /* ── Call Screen ── */
+    #remote-video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      background: #111;
+    }
+    #local-video {
+      position: absolute;
+      bottom: 110px; right: 16px;
+      width: 110px; height: 148px;
+      object-fit: cover;
+      border-radius: 18px;
+      border: 2.5px solid rgba(255,255,255,0.25);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      background: #222;
+    }
+    .call-header {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
+    }
+    .call-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px;
+      padding: 8px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: white;
+    }
+    .call-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: blink 1.5s infinite;
+    }
+
+    .call-controls {
+      position: absolute;
+      bottom: 36px; left: 0; right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+    }
+    .ctrl {
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 24px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    .ctrl:active { transform: scale(0.9); }
+    .ctrl-normal {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border: 1.5px solid rgba(255,255,255,0.12);
+    }
+    .ctrl-normal:hover { background: rgba(255,255,255,0.25); }
+    .ctrl-normal.off {
+      background: rgba(239,68,68,0.2);
+      border-color: rgba(239,68,68,0.4);
+    }
+    .ctrl-end {
+      background: var(--red);
+      box-shadow: 0 4px 20px rgba(239,68,68,0.5);
+      width: 68px; height: 68px;
+      font-size: 26px;
+    }
+    .ctrl-end:hover { background: #dc2626; transform: scale(1.05); }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      top: 24px; left: 50%;
+      transform: translateX(-50%) translateY(-120px);
+      background: rgba(18, 24, 38, 0.95);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 12px 22px;
+      font-size: 14px; font-weight: 600;
+      color: white;
+      z-index: 9999;
+      white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* Declined screen */
+    .declined-card {
+      text-align: center;
+    }
+    .declined-card .big-emoji {
+      font-size: 56px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    /* Divider */
+    .divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 16px 0;
+      color: var(--muted); font-size: 12px;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: var(--border);
+    }
+
+    @media (max-width: 480px) {
+      .card { padding: 32px 24px; border-radius: 24px; }
+      #local-video { width: 90px; height: 120px; bottom: 100px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Background orbs -->
+<div class="bg-orbs">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: HOME
+════════════════════════════════════════ -->
+<div class="screen active" id="screen-home">
+  <div class="card">
+    <div class="logo">🩺</div>
+    <h1>MedStudy</h1>
+    <p class="subtitle">Tıp öğrencileri için görüntülü<br>ders çalışma platformu</p>
+
+    <label class="field-label" for="name-input">Adın</label>
+    <input type="text" id="name-input" placeholder="Şimal" maxlength="30" autocomplete="off">
+
+    <button class="btn btn-primary" onclick="createInvite()">
+      <span>📎</span> Davet Linki Oluştur
+    </button>
+
+    <div class="err-box" id="home-error"></div>
+
+    <ul class="steps">
+      <li>
+        <span class="step-n">1</span>
+        Adını yaz, davet linkini oluştur
+      </li>
+      <li>
+        <span class="step-n">2</span>
+        WhatsApp'tan arkadaşına gönder
+      </li>
+      <li>
+        <span class="step-n">3</span>
+        Arkadaşın müsaitse "Katıl" der, görüşme başlar
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: WAITING
+════════════════════════════════════════ -->
+<div class="screen" id="screen-waiting">
+  <div class="card">
+    <div class="pulse-wrap">
+      <div class="pulse-ring">📚</div>
+    </div>
+
+    <h1>Arkadaşını Bekliyorsun</h1>
+    <p class="subtitle">Linki gönder — katılmak isterse<br>seni otomatik olarak arayacak.</p>
+
+    <label class="field-label">Davet Linki</label>
+    <div class="link-box">
+      <input type="text" id="invite-link-display" readonly>
+      <button class="copy-btn" onclick="copyLink()" title="Kopyala">📋</button>
+    </div>
+
+    <button class="btn btn-whatsapp" id="btn-whatsapp">
+      <span style="font-size:18px">💬</span> WhatsApp'tan Gönder
+    </button>
+
+    <div class="divider">ya da</div>
+
+    <div class="info-box">
+      <span class="info-box-icon">
+        <span class="dots"><span></span><span></span><span></span></span>
+      </span>
+      Arkadaşın katılmasını bekliyorsun
+    </div>
+
+    <button class="btn btn-ghost" onclick="goHome()" style="margin-top:8px">
+      İptal Et
+    </button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: INVITE (arkadaşın görür)
+════════════════════════════════════════ -->
+<div class="screen" id="screen-invite">
+  <div class="card">
+    <div class="invite-avatar" id="invite-avatar">?</div>
+    <div class="invite-name" id="invite-name">Arkadaşın</div>
+    <div class="live-badge">
+      <div class="live-dot"></div>
+      ders çalışmak istiyor
+    </div>
+
+    <label class="field-label" for="guest-name">Senin Adın</label>
+    <input type="text" id="guest-name" placeholder="Adını yaz..." maxlength="30" autocomplete="off">
+
+    <button class="btn btn-success" onclick="acceptInvite()">
+      <span>✅</span> Katıl
+    </button>
+    <button class="btn btn-danger" onclick="declineInvite()">
+      <span>❌</span> Şu An Müsait Değilim
+    </button>
+
+    <div class="err-box" id="invite-error"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN: CALL
+════════════════════════════════════════ -->
+<div class="call-screen" id="screen-call">
+  <video id="remote-video" autoplay playsinline></video>
+  <video id="local-video"  autoplay playsinline muted></video>
+
+  <div class="call-header">
+    <div class="call-pill">
+      <div class="call-dot"></div>
+      <span id="timer-display">00:00</span>
+      <span style="color:rgba(255,255,255,0.4)">·</span>
+      <span id="call-partner-label">Arkadaşın</span>
+    </div>
+  </div>
+
+  <div class="call-controls">
+    <button class="ctrl ctrl-normal" id="btn-mute" onclick="toggleMute()" title="Mikrofon">🎤</button>
+    <button class="ctrl ctrl-end"    onclick="endCall()"    title="Bitir">📵</button>
+    <button class="ctrl ctrl-normal" id="btn-cam"  onclick="toggleCam()"  title="Kamera">📹</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  State
+// ══════════════════════════════════════════
+const params      = new URLSearchParams(window.location.search);
+const inviteId    = params.get('invite');
+const inviterName = decodeURIComponent(params.get('name') || 'Arkadaşın');
+
+let peer         = null;
+let localStream  = null;
+let currentCall  = null;
+let timerInterval = null;
+let timerSec     = 0;
+let isMuted      = false;
+let isCamOff     = false;
+let myName       = 'Şimal';
+let partnerName  = inviterName;
+
+// ══════════════════════════════════════════
+//  Screen helpers
+// ══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen, .call-screen').forEach(el => el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// Init — are we an invitee or the host?
+if (inviteId) {
+  showScreen('screen-invite');
+  const name    = inviterName;
+  const initial = name.charAt(0).toUpperCase() || '?';
+  document.getElementById('invite-avatar').textContent = initial;
+  document.getElementById('invite-name').textContent   = name;
+} else {
+  showScreen('screen-home');
+}
+
+// ══════════════════════════════════════════
+//  HOST flow — create invite
+// ══════════════════════════════════════════
+async function createInvite() {
+  const nameInput = document.getElementById('name-input').value.trim();
+  myName = nameInput || 'Şimal';
+
+  const errEl = document.getElementById('home-error');
+  errEl.style.display = 'none';
+
+  // Get camera/mic
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  } catch (e) {
+    errEl.textContent = '⚠️ Kamera/mikrofon erişimi gerekli. Lütfen tarayıcı izni ver.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Create peer
+  peer = new Peer(undefined, { debug: 0 });
+
+  peer.on('open', peerId => {
+    const base  = window.location.href.split('?')[0];
+    const link  = `${base}?invite=${peerId}&name=${encodeURIComponent(myName)}`;
+    const waMsg = `Merhaba! 👋 ${myName} seni MedStudy'de ders çalışmaya davet ediyor. Müsaitsen katıl ✌️\n\n${link}`;
+
+    document.getElementById('invite-link-display').value = link;
+    document.getElementById('btn-whatsapp').onclick = () =>
+      window.open(`https://wa.me/?text=${encodeURIComponent(waMsg)}`, '_blank');
+
+    showScreen('screen-waiting');
+    showToast('✅ Link hazır! Arkadaşına gönder 🚀');
+  });
+
+  peer.on('error', err => {
+    showToast('⚠️ Bağlantı hatası: ' + err.type);
+    console.error(err);
+  });
+
+  // Incoming call (when guest accepts)
+  peer.on('call', incomingCall => {
+    incomingCall.answer(localStream);
+    currentCall = incomingCall;
+
+    incomingCall.on('stream', remoteStream => {
+      const rv = document.getElementById('remote-video');
+      rv.srcObject = remoteStream;
+      rv.muted = false;  // unmute — we want to hear the other side!
+
+      document.getElementById('local-video').srcObject = localStream;
+      document.getElementById('call-partner-label').textContent = partnerName;
+      showScreen('screen-call');
+      startTimer();
+      showToast('🎉 Bağlandı! İyi çalışmalar 📚');
+    });
+
+    incomingCall.on('close', onCallEnd);
+    incomingCall.on('error', onCallEnd);
+  });
+
+  // Data channel: receive partner name & decline
+  peer.on('connection', conn => {
+    conn.on('data', data => {
+      if (data.type === 'name')    partnerName = data.name;
+      if (data.type === 'decline') showToast(`❌ ${data.name || 'Arkadaşın'} şu an müsait değil.`);
+    });
+  });
+}
+
+// ══════════════════════════════════════════
+//  GUEST flow — accept
+// ══════════════════════════════════════════
+async function acceptInvite() {
+  const guestNameInput = document.getElementById('guest-name').value.trim();
+  myName = guestNameInput || 'Arkadaş';
+
+  const errEl = document.getElementById('invite-error');
+  errEl.style.display = 'none';
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  } catch (e) {
+    errEl.textContent = '⚠️ Kamera/mikrofon erişimi gerekli!';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  peer = new Peer(undefined, { debug: 0 });
+
+  peer.on('open', () => {
+    // 1) Send name via data connection
+    const conn = peer.connect(inviteId);
+    conn.on('open', () => conn.send({ type: 'name', name: myName }));
+
+    // 2) Call the host
+    const call = peer.call(inviteId, localStream);
+    currentCall = call;
+
+    call.on('stream', remoteStream => {
+      const rv = document.getElementById('remote-video');
+      rv.srcObject = remoteStream;
+      rv.muted = false;
+
+      document.getElementById('local-video').srcObject = localStream;
+      document.getElementById('call-partner-label').textContent = inviterName;
+      showScreen('screen-call');
+      startTimer();
+      showToast('🎉 Bağlandı! İyi çalışmalar 📚');
+    });
+
+    call.on('close', onCallEnd);
+    call.on('error', () => {
+      errEl.textContent = '⚠️ Bağlantı kurulamadı. Arkadaşın linkin süresi dolmuş olabilir.';
+      errEl.style.display = 'block';
+    });
+
+    showToast('⏳ Bağlanılıyor...');
+  });
+
+  peer.on('error', err => {
+    errEl.textContent = '⚠️ Hata: ' + err.type + '. Tekrar dene.';
+    errEl.style.display = 'block';
+  });
+}
+
+// ══════════════════════════════════════════
+//  GUEST flow — decline
+// ══════════════════════════════════════════
+function declineInvite() {
+  const guestName = document.getElementById('guest-name').value.trim() || 'Arkadaşın';
+  const p = new Peer(undefined, { debug: 0 });
+
+  p.on('open', () => {
+    const conn = p.connect(inviteId);
+    conn.on('open', () => {
+      conn.send({ type: 'decline', name: guestName });
+    });
+  });
+
+  // Show confirmation
+  showScreen('screen-invite');
+  document.getElementById('screen-invite').innerHTML = `
+    <div class="card declined-card">
+      <span class="big-emoji">✌️</span>
+      <h1>Tamam!</h1>
+      <p class="subtitle" style="margin-top:8px">
+        ${inviterName}'a müsait olmadığın iletildi.<br>
+        Bu sekmeyi kapatabilirsin.
+      </p>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════
+//  Call controls
+// ══════════════════════════════════════════
+function toggleMute() {
+  if (!localStream) return;
+  isMuted = !isMuted;
+  localStream.getAudioTracks().forEach(t => t.enabled = !isMuted);
+  const btn = document.getElementById('btn-mute');
+  btn.textContent = isMuted ? '🔇' : '🎤';
+  btn.classList.toggle('off', isMuted);
+  showToast(isMuted ? '🔇 Mikrofon kapalı' : '🎤 Mikrofon açık');
+}
+
+function toggleCam() {
+  if (!localStream) return;
+  isCamOff = !isCamOff;
+  localStream.getVideoTracks().forEach(t => t.enabled = !isCamOff);
+  const btn = document.getElementById('btn-cam');
+  btn.textContent = isCamOff ? '🚫' : '📹';
+  btn.classList.toggle('off', isCamOff);
+  showToast(isCamOff ? '📷 Kamera kapalı' : '📹 Kamera açık');
+}
+
+function endCall() {
+  cleanup();
+  showScreen('screen-home');
+  showToast('👋 Görüşme bitti!');
+}
+
+function onCallEnd() {
+  cleanup();
+  showScreen('screen-home');
+  showToast('📵 Bağlantı kesildi.');
+}
+
+function cleanup() {
+  if (currentCall)   currentCall.close();
+  if (localStream)   localStream.getTracks().forEach(t => t.stop());
+  if (peer)          peer.destroy();
+  if (timerInterval) clearInterval(timerInterval);
+  currentCall = null; localStream = null; peer = null; timerInterval = null;
+  isMuted = false; isCamOff = false;
+  document.getElementById('btn-mute').textContent = '🎤';
+  document.getElementById('btn-cam').textContent  = '📹';
+}
+
+function goHome() {
+  cleanup();
+  showScreen('screen-home');
+}
+
+// ══════════════════════════════════════════
+//  Timer
+// ══════════════════════════════════════════
+function startTimer() {
+  timerSec = 0;
+  timerInterval = setInterval(() => {
+    timerSec++;
+    const m = String(Math.floor(timerSec / 60)).padStart(2, '0');
+    const s = String(timerSec % 60).padStart(2, '0');
+    document.getElementById('timer-display').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+// ══════════════════════════════════════════
+//  Utilities
+// ══════════════════════════════════════════
+function copyLink() {
+  const link = document.getElementById('invite-link-display').value;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(link).then(() => showToast('✅ Link kopyalandı!'));
+  } else {
+    const inp = document.getElementById('invite-link-display');
+    inp.select(); document.execCommand('copy');
+    showToast('✅ Link kopyalandı!');
+  }
+}
+
+let toastTimeout;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+// Enter key on name input triggers create
+document.getElementById('name-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') createInvite();
+});
+</script>
+</body>
+</html>
